@@ -1,0 +1,103 @@
+const { Client, GatewayIntentBits, PermissionFlagsBits } = require("discord.js");
+
+const client = new Client({
+  intents: [
+    GatewayIntentBits.Guilds,
+    GatewayIntentBits.GuildMessages,
+    GatewayIntentBits.MessageContent,
+    GatewayIntentBits.GuildMembers
+  ]
+});
+
+const prefix = "+";
+const warns = {};
+
+client.on("messageCreate", async (message) => {
+  if (!message.guild || message.author.bot) return;
+  if (!message.content.startsWith(prefix)) return;
+
+  const args = message.content.slice(prefix.length).trim().split(/ +/);
+  const command = args.shift().toLowerCase();
+
+  const member = message.mentions.members.first();
+
+  // ---------------- PING ----------------
+  if (command === "ping") {
+    return message.reply("🏓 Pong !");
+  }
+
+  // ---------------- KICK ----------------
+  if (command === "kick") {
+    if (!message.member.permissions.has(PermissionFlagsBits.KickMembers))
+      return message.reply("❌ Pas la permission");
+
+    if (!member) return message.reply("Mentionne un membre");
+
+    await member.kick();
+    message.channel.send("👢 Utilisateur kick");
+  }
+
+  // ---------------- BAN ----------------
+  if (command === "ban") {
+    if (!message.member.permissions.has(PermissionFlagsBits.BanMembers))
+      return message.reply("❌ Pas la permission");
+
+    if (!member) return message.reply("Mentionne un membre");
+
+    await member.ban();
+    message.channel.send("⛔ Utilisateur ban");
+  }
+
+  // ---------------- WARN ----------------
+  if (command === "warn") {
+    if (!member) return message.reply("Mentionne un membre");
+
+    const reason = args.join(" ") || "Aucune raison";
+
+    if (!warns[member.id]) warns[member.id] = [];
+    warns[member.id].push(reason);
+
+    message.channel.send(`⚠️ ${member.user.tag} a été warn`);
+  }
+
+  // ---------------- WARNINGS ----------------
+  if (command === "warnings") {
+    if (!member) return message.reply("Mentionne un membre");
+
+    const list = warns[member.id];
+    if (!list || list.length === 0)
+      return message.reply("Aucun warn");
+
+    message.channel.send(
+      `⚠️ Warns de ${member.user.tag}:\n` +
+      list.map((w, i) => `${i + 1}. ${w}`).join("\n")
+    );
+  }
+
+  // ---------------- CLEAR ----------------
+  if (command === "clear") {
+    if (!message.member.permissions.has(PermissionFlagsBits.ManageMessages))
+      return message.reply("❌ Pas la permission");
+
+    const amount = parseInt(args[0]);
+    if (!amount || amount > 100)
+      return message.reply("Donne un nombre (max 100)");
+
+    await message.channel.bulkDelete(amount);
+    message.channel.send("🧹 Messages supprimés")
+      .then(m => setTimeout(() => m.delete(), 3000));
+  }
+
+  // ---------------- LOCK ----------------
+  if (command === "lock") {
+    if (!message.member.permissions.has(PermissionFlagsBits.ManageChannels))
+      return message.reply("❌ Pas la permission");
+
+    message.channel.permissionOverwrites.edit(message.guild.roles.everyone, {
+      SendMessages: false
+    });
+
+    message.channel.send("🔒 Salon verrouillé");
+  }
+
+  //
